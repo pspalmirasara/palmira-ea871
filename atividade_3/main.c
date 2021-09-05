@@ -1,3 +1,9 @@
+/*
+ * EA871 - Turma A
+ * Palmira Sara Aranovich Florentino RA 185306
+ * tinkercard: https://www.tinkercad.com/things/1HQDpA10bRw-185306atividade03
+ */
+
 /* ========== Explicacao da utilizacao de mascaras ==========
  *
  * Caso seja feita uma atribuicao direta, como por exemplo '*var = 1', por mais que nossa intencao
@@ -39,7 +45,7 @@ unsigned char *p_ddrd;
 unsigned char botao = 0;
 
 /* Variavel que guarda o estado da MEF */
-/* Ela tera os estados de 0 a 15, e depois voltara ao estado 0 */
+/* Ela tera os estados de 0 a 31, e depois voltara ao estado 0 */
 unsigned char estado = 0;
 
 /* Variavel que guarda o estado do led decimal */
@@ -56,6 +62,12 @@ unsigned char led = 0;
  * PD7: g
  * de acordo com o mapeamento encontrado em:
  * https://components101.com/sites/default/files/component_pin/7-segment-display-pin-diagr_0.png
+ */
+
+/* As funcoes set_0 ... set_15 settam o codigo do display correspondente nos 7 bits mais significativos
+ * da PORTD. Para manter o bit menos significativo, que no sistema esta sendo usado como um led que sinaliza
+ * o aperto do botao, sao utilizadas mascaras em todos os casos, como explicado acima.
+ * Em todas as funcoes, primeiramente eh settado os bit 1 e depois os bits 0
  */
 
 void set_0() {
@@ -165,7 +177,7 @@ void apaga_led_decimal() {
 }
 
 /* Inicializacoes dos perifericos envolvidos no sistema */
-void configuracoes_iniciais(void) {
+void configuracoes_iniciais() {
 
     /* MCUCR */
     p_mcucr = (unsigned char *) 0x55;
@@ -182,9 +194,9 @@ void configuracoes_iniciais(void) {
     *p_ddrc &= 0xFE; //settando como entrada, PC_DDR0 = 0
 
     /*Ativando os resistores de pull-up:
-     *O bit 4 do MCUCR deve ser 0 para poderem ser
-   *ativados os resistores de pull-up em cada PORT
-   */
+     *  O bit 4 do MCUCR deve ser 0 para poderem ser
+     *  ativados os resistores de pull-up em cada PORT
+     */
     *p_mcucr &= 0xEF;
     /*Ativar o pull up na entrada do botao (PORTC menos significativo)*/
     *p_portc |= 0x01;
@@ -203,6 +215,11 @@ void configuracoes_iniciais(void) {
     set_0();
 }
 
+/*
+ * Cada display possui 2 estados, o que resulta em 32 estados no total
+ * Em cada estado, a entrada do botao OU o deixara sistema em repouso, ou fara
+ * o sistema avancar um estado e realizar alguma acao
+ */
 void maquina_de_estados() {
     switch (estado) {
         /*Display: 0*/
@@ -453,8 +470,14 @@ void maquina_de_estados() {
     }
 }
 
+/*Funcao que trata o bounce do botao:
+ * caso seja detectado que a entrada que le o botao (bit menos significativo do p_pinc) encontra-se
+ * diferente da variavel botao, sera acionado um delay e verificada essa condicao novamente
+ * Caso a divergencia permaneça, quer dizer que o botao realmente trocou de estado e nao era apenas uma
+ * divergencia transitoria. Portanto, armazenamos esse novo estado na variavel botao
+ */
 void filtragem_transitorio() {
-    if (botao != ((*p_pinc & 0x01))) {
+    if (botao != ((*p_pinc & 0x01))) { //compara-se o botao ao bit menos significativo de p_pinc
         _delay_ms(100);
         if (botao != ((*p_pinc & 0x01))) {
             botao = ((*p_pinc & 0x01));
