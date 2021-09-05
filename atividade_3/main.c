@@ -205,6 +205,7 @@ void configuracoes_iniciais(void) {
 
 void maquina_de_estados() {
     switch (estado) {
+        /*Display: 0*/
         case 0:
             if (botao == 1) {
                 //repouso
@@ -214,6 +215,7 @@ void maquina_de_estados() {
                 estado = 1;
             }
             break;
+        /*Display: 1*/
         case 1:
             if (botao == 1) {
                 apaga_led_decimal();
@@ -231,6 +233,7 @@ void maquina_de_estados() {
                 estado = 3;
             }
             break;
+        /*Display: 2*/
         case 3:
             if (botao == 1) {
                 apaga_led_decimal();
@@ -241,32 +244,208 @@ void maquina_de_estados() {
             break;
         case 4:
             if (botao == 1) {
-
+                //repouso
             } else {
+                liga_led_decimal();
+                set_3();
+                estado = 5;
             }
             break;
+        /*Display: 3*/
         case 5:
             if (botao == 1) {
-
+                apaga_led_decimal();
+                estado = 6;
             } else {
+                //repouso
             }
             break;
         case 6:
             if (botao == 1) {
-
+                //repouso
             } else {
+                liga_led_decimal();
+                set_4();
+                estado = 7;
             }
             break;
+        /*Display: 4*/
         case 7:
             if (botao == 1) {
-
+                apaga_led_decimal();
+                estado = 8;
             } else {
+                //repouso
             }
             break;
         case 8:
             if (botao == 1) {
-
+                //repouso
             } else {
+                liga_led_decimal();
+                set_5();
+                estado = 9;
+            }
+            break;
+        /*Display: 5*/
+        case 9:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 10;
+            }
+            break;
+        case 10:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_6();
+                estado = 11;
+            }
+            break;
+        /*Display: 6*/
+        case 11:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 12;
+            }
+            break;
+        case 12:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_7();
+                estado = 13;
+            }
+            break;
+        /*Display: 7*/
+        case 13:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 14;
+            }
+            break;
+        case 14:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_8();
+                estado = 15;
+            }
+            break;
+        /*Display: 8*/
+        case 15:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 16;
+            }
+            break;
+        case 16:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_9();
+                estado = 17;
+            }
+            break;
+        /*Display: 9*/
+        case 17:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 18;
+            }
+            break;
+        case 18:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_10();
+                estado = 19;
+            }
+            break;
+        /*Display: 10 (A)*/
+        case 19:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 20;
+            }
+            break;
+        case 20:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_11();
+                estado = 21;
+            }
+            break;
+        /*Display: 11 (B)*/
+        case 21:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 22;
+            }
+            break;
+        case 22:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_12();
+                estado = 23;
+            }
+            break;
+        /*Display: 12 (C)*/
+        case 23:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 24;
+            }
+            break;
+        case 24:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_13();
+                estado = 25;
+            }
+            break;
+        /*Display: 13 (D)*/
+        case 25:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 26;
+            }
+            break;
+        case 26:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_14();
+                estado = 27;
+            }
+            break;
+        /*Display: 14 (E)*/
+        case 27:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 28;
+            }
+            break;
+        case 28:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_15();
+                estado = 29;
+            }
+            break;
+        /*Display: 15 (F)*/
+        case 29:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 30;
+            }
+            break;
+        case 30:
+            if (botao == 0) {
+                liga_led_decimal();
+                set_0();
+                estado = 31;
+            }
+            break;
+        /*Display: 0*/
+        case 31:
+            if (botao == 1) {
+                apaga_led_decimal();
+                estado = 0;
             }
             break;
         default:
