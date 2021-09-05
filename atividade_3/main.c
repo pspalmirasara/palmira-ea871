@@ -76,6 +76,84 @@ void set_2() {
     *p_portd &= 0xB7; //settando os 0 (1011 0111)
 }
 
+void set_3() {
+    //1001 111x
+    *p_portd |= 0x9E; //settando os 1 (1001 1110)
+    *p_portd &= 0x9F; //settando os 0 (1001 1111)
+}
+
+void set_4() {
+    //1100 110X
+    *p_portd |= 0xCC; //settando os 1 (1100 1100)
+    *p_portd &= 0xCD; //settando os 0 (1100 1101)
+}
+
+void set_5() {
+    //1101 101x
+    *p_portd |= 0xDA; //settando os 1 (1101 1010)
+    *p_portd &= 0xDB; //settando os 0 (1101 1011)
+}
+
+void set_6() {
+    //1111 101x
+    *p_portd |= 0xFA; //settando os 1 (1111 1010)
+    *p_portd &= 0xFB; //settando os 0 (1111 1011)
+}
+
+void set_7() {
+    //0000 111x
+    *p_portd |= 0x0E; //settando os 1 (0000 1110)
+    *p_portd &= 0x0F; //settando os 0 (0000 1111)
+}
+
+void set_8() {
+    //1111 111x
+    *p_portd |= 0xFE; //settando os 1 (1111 1110)
+    *p_portd &= 0xFF; //settando os 0 (1111 1111)
+}
+
+void set_9() {
+    //1101 111x
+    *p_portd |= 0xDE; //settando os 1 (1101 1110)
+    *p_portd &= 0xDF; //settando os 0 (1101 1111)
+}
+
+void set_10() {
+    //1110 111x
+    *p_portd |= 0xEE; //settando os 1 (1110 1110)
+    *p_portd &= 0xEF; //settando os 0 (1110 1111)
+}
+
+void set_11() {
+    //1111 100x
+    *p_portd |= 0xF8; //settando os 1 (1111 1000)
+    *p_portd &= 0xF9; //settando os 0 (1111 1001)
+}
+
+void set_12() {
+    //0111 001X
+    *p_portd |= 0x72; //settando os 1 (0111 0010)
+    *p_portd &= 0x73; //settando os 0 (0111 0011)
+}
+
+void set_13() {
+    //1011 110x
+    *p_portd |= 0xBC; //settando os 1 (1011 1100)
+    *p_portd &= 0xBD; //settando os 0 (1011 1101)
+}
+
+void set_14() {
+    //1111 001x
+    *p_portd |= 0xF2; //settando os 1 (1111 0010)
+    *p_portd &= 0xF3; //settando os 0 (1111 0011)
+}
+
+void set_15() {
+    //1110 001x
+    *p_portd |= 0xE2; //settando os 1 (1110 0010)
+    *p_portd &= 0xE3; //settando os 0 (1110 0011)
+}
+
 void liga_led_decimal() {
     *p_portd |= 0x01;
     led = 1;
@@ -149,16 +227,46 @@ void maquina_de_estados() {
                 //repouso
             } else {
                 liga_led_decimal();
-                set_0();
+                set_2();
                 estado = 3;
             }
             break;
         case 3:
             if (botao == 1) {
                 apaga_led_decimal();
-                estado = 0;
+                estado = 4;
             } else {
                 //repouso
+            }
+            break;
+        case 4:
+            if (botao == 1) {
+
+            } else {
+            }
+            break;
+        case 5:
+            if (botao == 1) {
+
+            } else {
+            }
+            break;
+        case 6:
+            if (botao == 1) {
+
+            } else {
+            }
+            break;
+        case 7:
+            if (botao == 1) {
+
+            } else {
+            }
+            break;
+        case 8:
+            if (botao == 1) {
+
+            } else {
             }
             break;
         default:
