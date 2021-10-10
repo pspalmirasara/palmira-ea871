@@ -2,8 +2,6 @@
 
 #define F_CPU 16000000UL
 #define MAX_BUFFER 5
-
-
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -14,7 +12,8 @@ char msg_2[] = "2222222222222222222222222.\n\n";
 char msg_3[] = "3333333333333333333333333.\n\n";
 char msg_undefined[] = "NNNNNNNNNNNNNNNNNNNNNNNNN. \n\n";
 char msg_vazio[] = "Vazio! \n\n";
-volatile unsigned int printando_vazio = 0;
+volatile unsigned int esta_printando = 0;
+volatile unsigned int cod_msg = 0; //ENUM: 1, 2, 3, 4: undefined, 5: vazio
 
 
 /******** Buffer Circular ********/
@@ -74,16 +73,50 @@ void config() {
     sei();
 }
 
+
+void comecar_printar(int input) {
+    esta_printando = 1; //setta a flag que o programa esta executando um print
+
+    cod_msg = input;
+    char *str;
+    switch (cod_msg) {
+        case 1:
+            str = msg_1;
+            break;
+        case 2:
+            str = msg_2;
+            break;
+        case 3:
+            str = msg_3;
+            break;
+        case 4:
+            str = msg_undefined;
+            break;
+        case 5:
+            str = msg_vazio;
+            break;
+        default:
+            break;
+    }
+
+    *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
+    *p_udr0 = str[0]; //coloca o primeiro na saida para desencadear as interrupcoes
+    i_msg = 1;
+}
+
 void print_msg(char *str) {
     if (!(str[i_msg - 1] == '\n' && str[i_msg] == '\n')) {
         *p_udr0 = str[i_msg];
         i_msg++;
     } else {
+        _delay_ms(500);
+        *p_ucsr0B &= ~0x40; // apos terminar de enviar a msg, desabilata interrupcao TX
         *p_udr0 = str[i_msg];
         i_msg = 0;
-        *p_ucsr0B &= ~0x20; // apos terminar de enviar a msg, desabilata interrupcao
+        esta_printando = 0;
     }
 }
+
 
 /************** Servicos do Buffer Circular **************/
 unsigned int adicionar_indice(unsigned int k) {
@@ -114,49 +147,59 @@ unsigned char pega_comando_do_buffer() {
 }
 
 /************** Interrupcoes **************/
+
+/****** RX: ******/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
             case '1':
-                print_msg(msg_1);
-            //controle do led
-            break;
+                //controle do led 1
+                comecar_printar(1);
+                break;
             case '2':
-                print_msg(msg_2);
-            //controle do led
-            break;
+                //controle do led 2
+                comecar_printar(2);
+                break;
             case '3':
-                print_msg(msg_3);
-            //controle do led
-            break;
+                //controle do led 3
+                comecar_printar(3);
+                break;
             default:
-                print_msg(msg_undefined);
-            break;
+                comecar_printar(4);
+                break;
         }
+        *p_ucsr0B &= ~0x20; //desabilita interrupcao RX apos fazer acoes necessarias
 }
 
+/****** Recebe caracteres ******/
 ISR(USART_RX_vect) {
         adiciona_buffer(*p_udr0);
 }
 
-
-
+/****** TX: envia mensagens ******/
 ISR(USART_TX_vect) {
-        if (!(msg_vazio[i_msg-1] == '\n' &&  msg_vazio[i_msg] == '\n')) {
-            *p_udr0 = msg_vazio[i_msg];
-            i_msg++;
-        } else {
-            _delay_ms(500*4);
-            *p_udr0 = msg_vazio[i_msg];
-            i_msg = 0;
-            *p_ucsr0B &= ~0x40; // apos terminar de enviar a msg, desabilata interrupcao TX
-            printando_vazio = 0;
+        switch (cod_msg) {
+            case 1:
+                print_msg(msg_1);
+                break;
+            case 2:
+                print_msg(msg_2);
+                break;
+            case 3:
+                print_msg(msg_3);
+                break;
+            case 4:
+                print_msg(msg_undefined);
+                break;
+            case 5:
+                print_msg(msg_vazio);
+                break;
+            default:
+                break;
         }
 }
 
 void print_buffer_vazio() {
-    *p_udr0 = msg_vazio[0];
-    i_msg++;
-    printando_vazio = 1;
+    comecar_printar(5);
 }
 
 int main() {
@@ -164,14 +207,13 @@ int main() {
     while (1) {
         if (qnt_buffer > 0) {
             //nem interrupcao TX nem DX ligadas
-            if ( ((*p_ucsr0B & 0x20) != 0x20)) {
+            if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0) && qnt_buffer != 0) {
                 comando_atual = pega_comando_do_buffer();
-                *p_ucsr0B |= 0x20; //quando tiver algo no buffer, habilita-se a interrupção de buffer vazio
+                *p_ucsr0B |= 0x20; //quando tiver algo no buffer, habilita-se a interrupção RX
             }
         } else {
-            //nem interrupcao TX nem DX ligadas
-            if ( ((*p_ucsr0B & 0x20) != 0x20) && (printando_vazio == 0)) {
-                *p_ucsr0B |= 0x40;
+            //interrupcao DX desligada e nao estar printando no momento
+            if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0)) && qnt_buffer == 0) {
                 print_buffer_vazio();
             }
         }
