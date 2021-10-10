@@ -13,6 +13,9 @@ char msg_1[] = "1111111111111111111111111.\n\n";
 char msg_2[] = "2222222222222222222222222.\n\n";
 char msg_3[] = "3333333333333333333333333.\n\n";
 char msg_undefined[] = "NNNNNNNNNNNNNNNNNNNNNNNNN. \n\n";
+char msg_vazio[] = "Vazio! \n\n";
+volatile unsigned int printando_vazio = 0;
+
 
 /******** Buffer Circular ********/
 volatile unsigned int i = 0;
@@ -58,8 +61,8 @@ void config() {
 
     // UCSRnB – USART Control and Status Register n B
     // RXCIEn TXCIEn UDRIEn RXENn TXENn UCSZn2 RXB8n TXB8n
-    //  1       0      0      1     1     0      X     X
-    *p_ucsr0B = 0x98;
+    //  1       1      0      1     1     0      X     X
+    *p_ucsr0B = 0xD8;
     //inicialmente, a interrupcao de buffer vazio esta desabilitada para o programa nao chama-la logo de inicio
 
     // UCSRnC – USART Control and Status Register n C
@@ -83,7 +86,15 @@ void print_msg(char *str) {
 }
 
 /************** Servicos do Buffer Circular **************/
-void adiciona_buffer(int in) {
+unsigned int adicionar_indice(unsigned int k) {
+    if (k == (MAX_BUFFER-1)) {
+        return 0;
+    } else {
+        return k + 1;
+    }
+}
+
+void adiciona_buffer(unsigned int in) {
     if (qnt_buffer < MAX_BUFFER) {
         buffer_circular[i] = in;
         qnt_buffer++;
@@ -91,8 +102,8 @@ void adiciona_buffer(int in) {
     }
 }
 
-volatile unsigned char pega_comando_do_buffer() {
-    int output = 0;
+unsigned char pega_comando_do_buffer() {
+    unsigned char output = 0;
     if (qnt_buffer > 0) {
         output = buffer_circular[j];
         buffer_circular[j] = 0;
@@ -102,14 +113,7 @@ volatile unsigned char pega_comando_do_buffer() {
     return output;
 }
 
-volatile unsigned int adicionar_indice(int k) {
-    if (k == (MAX_BUFFER-1)) {
-        return 0;
-    } else {
-        return k + 1;
-    }
-}
-
+/************** Interrupcoes **************/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
             case '1':
@@ -134,13 +138,41 @@ ISR(USART_RX_vect) {
         adiciona_buffer(*p_udr0);
 }
 
+
+
+ISR(USART_TX_vect) {
+        if (!(msg_vazio[i_msg-1] == '\n' &&  msg_vazio[i_msg] == '\n')) {
+            *p_udr0 = msg_vazio[i_msg];
+            i_msg++;
+        } else {
+            _delay_ms(500*4);
+            *p_udr0 = msg_vazio[i_msg];
+            i_msg = 0;
+            *p_ucsr0B &= ~0x40; // apos terminar de enviar a msg, desabilata interrupcao TX
+            printando_vazio = 0;
+        }
+}
+
+void print_buffer_vazio() {
+    *p_udr0 = msg_vazio[0];
+    i_msg++;
+    printando_vazio = 1;
+}
+
 int main() {
     config();
     while (1) {
         if (qnt_buffer > 0) {
-            if ( (*p_ucsr0B & 0x20) != 0x20) { //uma nova interrupcao sera pegad o buffer apenas se a ultima tiver terminado
+            //nem interrupcao TX nem DX ligadas
+            if ( ((*p_ucsr0B & 0x20) != 0x20)) {
                 comando_atual = pega_comando_do_buffer();
                 *p_ucsr0B |= 0x20; //quando tiver algo no buffer, habilita-se a interrupção de buffer vazio
+            }
+        } else {
+            //nem interrupcao TX nem DX ligadas
+            if ( ((*p_ucsr0B & 0x20) != 0x20) && (printando_vazio == 0)) {
+                *p_ucsr0B |= 0x40;
+                print_buffer_vazio();
             }
         }
     }
