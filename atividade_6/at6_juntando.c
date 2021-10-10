@@ -1,5 +1,4 @@
 //TODO: colocar as especificacoes da atividade 6
-//TODO: servicos do LED
 
 #define F_CPU 16000000UL
 #define MAX_BUFFER 5
@@ -14,16 +13,22 @@ unsigned char *p_ddrC;
 volatile unsigned int led_c = 0;
 volatile unsigned int led_m = 0;
 volatile unsigned int led_b = 0;
+volatile unsigned int acao_atual = 0;
+
+/******** Estados ********/
+volatile unsigned int estado_acao_0 = 0;
+volatile unsigned int estado_acao_1 = 0;
+volatile unsigned int estado_acao_2 = 0;
 
 /******** Print ********/
 volatile unsigned int i_msg = 0;
-char msg_1[] = "1111111111111111111111111.\n\n";
-char msg_2[] = "2222222222222222222222222.\n\n";
-char msg_3[] = "3333333333333333333333333.\n\n";
-char msg_undefined[] = "NNNNNNNNNNNNNNNNNNNNNNNNN. \n\n";
+char msg_0[] = "Comando: Todos os LEDs piscando.\n\n";
+char msg_1[] = "Comando: Varredura com um LED acesso.\n\n";
+char msg_2[] = "Comando: Varredura com um LED apagado.\n\n";
+char msg_undefined[] = "Comando incorreto. \n\n";
 char msg_vazio[] = "Vazio! \n\n";
 volatile unsigned int esta_printando = 0;
-volatile unsigned int cod_msg = 0; //ENUM: 1, 2, 3, 4: undefined, 5: vazio
+volatile unsigned int cod_msg = 0; //ENUM: 0, 1, 2, 3: undefined, 4: vazio
 
 /******** Buffer Circular ********/
 volatile unsigned int i = 0;
@@ -68,11 +73,12 @@ void config() {
     /*Registradores que configuram o Baud rate*/
     /*especificado na atividade: 15.2k com -3.5% de erro*/
     *p_ubrr0H = 0;
-    *p_ubrr0L = 16;
+    *p_ubrr0L = 11;
 
     // UCSRnA – USART Control and Status Register n A
     // RXCn TXCn UDREn FEn DORn UPEn U2Xn MPCMn
-    //  X    X     X    X    X   X    1     0
+    //  X    X     X    X    X   X    0     0
+    //                              =DS=
     *p_ucsr0A = 0;
 
     // UCSRnB – USART Control and Status Register n B
@@ -84,6 +90,7 @@ void config() {
     // UCSRnC – USART Control and Status Register n C
     // UMSELn1 UMSELn0 UPMn1 UPMn0 USBSn UCSZn1 UCSZn0 UCPOLn
     //    0       0      0     0     1      1     1      0
+    //  ====ASSYNC==  |   =PARY=  |=STP=| ==8 bits==  |
     *p_ucsr0C = 0x0E;
 
     /*Habilita interrupções globais*/
@@ -138,6 +145,97 @@ void troca_estado_led (char led) {
 }
 /************** Servicos do LED: END **************/
 
+
+/************** Maquinas de Estado e Acoes dos LEDS: BEGIN **************/
+void acao_0 () {
+    switch (estado_acao_0) {
+        case 0:
+            liga_led('c');
+            liga_led('m');
+            liga_led('b');
+            estado_acao_0 = 1;
+            break;
+        case 1:
+            apaga_led('c');
+            apaga_led('m');
+            apaga_led('b');
+            estado_acao_0 = 0;
+            break;
+        default:
+            estado_acao_0 = 0;
+            break;
+    }
+}
+
+void acao_1 () {
+    switch (estado_acao_1) {
+        case 0:
+            liga_led('c');
+            apaga_led('m');
+            apaga_led('b');
+            estado_acao_1 = 1;
+            break;
+        case 1:
+            apaga_led('c');
+            liga_led('m');
+            apaga_led('b');
+            estado_acao_1 = 2;
+            break;
+        case 2:
+            apaga_led('c');
+            apaga_led('m');
+            liga_led('b');
+            estado_acao_1 = 0;
+            break;
+        default:
+            estado_acao_1 = 0;
+            break;
+    }
+}
+
+void acao_2 () {
+    switch (estado_acao_2) {
+        case 0:
+            apaga_led('c');
+            liga_led('m');
+            liga_led('b');
+            estado_acao_2 = 1;
+            break;
+        case 1:
+            liga_led('c');
+            apaga_led('m');
+            liga_led('b');
+            estado_acao_2 = 2;
+            break;
+        case 2:
+            liga_led('c');
+            liga_led('m');
+            apaga_led('b');
+            estado_acao_2 = 0;
+            break;
+        default:
+            estado_acao_2 = 0;
+            break;
+    }
+}
+
+void executa_acao_atual() {
+    switch (acao_atual) {
+        case 0:
+            acao_0();
+            break;
+        case 1:
+            acao_1();
+            break;
+        case 2:
+            acao_2();
+            break;
+        default:
+            break;
+    }
+}
+/************** Maquinas de Estado e Acoes dos LEDS: END **************/
+
 /************** Servicos de Printar: BEGIN **************/
 void comecar_printar(int input) {
     esta_printando = 1; //setta a flag que o programa esta executando um print
@@ -145,6 +243,9 @@ void comecar_printar(int input) {
     cod_msg = input;
     char *str;
     switch (cod_msg) {
+        case 0:
+            str = msg_0;
+            break;
         case 1:
             str = msg_1;
             break;
@@ -152,12 +253,9 @@ void comecar_printar(int input) {
             str = msg_2;
             break;
         case 3:
-            str = msg_3;
-            break;
-        case 4:
             str = msg_undefined;
             break;
-        case 5:
+        case 4:
             str = msg_vazio;
             break;
         default:
@@ -217,23 +315,20 @@ unsigned char pega_comando_do_buffer() {
 /****** RX: ******/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
+            case '0':
+                acao_atual = 0;
+                comecar_printar(0);
+                break;
             case '1':
-                //controle do led 1
-                troca_estado_led('c');
+                acao_atual = 1;
                 comecar_printar(1);
                 break;
             case '2':
-                //controle do led 2
-                troca_estado_led('m');
+                acao_atual = 2;
                 comecar_printar(2);
                 break;
-            case '3':
-                //controle do led 3
-                troca_estado_led('b');
-                comecar_printar(3);
-                break;
             default:
-                comecar_printar(4);
+                comecar_printar(3);
                 break;
         }
         *p_ucsr0B &= ~0x20; //desabilita interrupcao RX apos fazer acoes necessarias
@@ -247,6 +342,9 @@ ISR(USART_RX_vect) {
 /****** TX: envia mensagens ******/
 ISR(USART_TX_vect) {
         switch (cod_msg) {
+            case 0:
+                print_msg(msg_0);
+                break;
             case 1:
                 print_msg(msg_1);
                 break;
@@ -254,12 +352,9 @@ ISR(USART_TX_vect) {
                 print_msg(msg_2);
                 break;
             case 3:
-                print_msg(msg_3);
-                break;
-            case 4:
                 print_msg(msg_undefined);
                 break;
-            case 5:
+            case 4:
                 print_msg(msg_vazio);
                 break;
             default:
@@ -276,11 +371,13 @@ int main() {
             if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0) && qnt_buffer != 0) {
                 comando_atual = pega_comando_do_buffer();
                 *p_ucsr0B |= 0x20; //quando tiver algo no buffer, habilita-se a interrupção RX
+                executa_acao_atual();
             }
         } else {
             //interrupcao DX desligada e nao estar printando no momento
             if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0)) && qnt_buffer == 0) {
-                comecar_printar(5);
+                comecar_printar(4);
+                executa_acao_atual();
             }
         }
     }
