@@ -13,8 +13,8 @@
 
 /******** Buffer Circular ********/
 volatile unsigned char buffer_circular [4];
-volatile unsigned char i = buffer_circular;
-volatile unsigned char j = buffer_circular;
+volatile unsigned char i = 0;
+volatile unsigned char j = 0;
 volatile unsigned char qnt_buffer = 0;
 
 /******** Variaveis ********/
