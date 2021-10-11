@@ -1,5 +1,5 @@
 #define F_CPU 16000000UL
-#define MAX_BUFFER 10
+#define MAX_BUFFER 5
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -136,6 +136,7 @@ void apaga_led(char led) {
     }
 }
 
+//se o led correspondente esta apagado, o liga e vice-versa
 void troca_estado_led (char led) {
     if (led == 'c') {
         if (led_c == 1) apaga_led(led);
@@ -226,6 +227,9 @@ void acao_2 () {
     }
 }
 
+// De acordo com qual acao estiver settada no momento, chamara a funcao para
+// que ela realize suas instrucoes e avance para o proximo estado.
+// Apos isso, executa o delay
 void executa_acao_atual() {
     switch (acao_atual) {
         case 0:
@@ -281,6 +285,7 @@ void print_msg(char *str) {
         i_msg++;
     } else {
         *p_ucsr0B &= ~0x40; // apos terminar de enviar a msg, desabilata interrupcao TX
+        *p_ucsr0A |= 0x40; // setta 1 em TXCn para limpar
         *p_udr0 = str[i_msg];
         i_msg = 0;
         esta_printando = 0;
@@ -312,7 +317,7 @@ unsigned char pega_comando_do_buffer() {
 /************** Servicos do Buffer Circular: END **************/
 
 /************** Interrupcoes: BEGIN **************/
-/****** RX: ******/
+/****** UDRE ******/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
             case '0':
@@ -334,12 +339,12 @@ ISR(USART_UDRE_vect) {
         *p_ucsr0B &= ~0x20; //desabilita interrupcao RX apos fazer acoes necessarias
 }
 
-/****** Recebe caracteres ******/
+/****** RX: recebe os caracteres do monitor do monitor serial ******/
 ISR(USART_RX_vect) {
         adiciona_buffer(*p_udr0);
 }
 
-/****** TX: envia mensagens ******/
+/****** TX: envia mensagens ao monitor serial ******/
 ISR(USART_TX_vect) {
         switch (cod_msg) {
             case 0:
@@ -365,18 +370,24 @@ ISR(USART_TX_vect) {
 
 int main() {
     config();
+
+    *p_udr0 = msg_vazio[0]; //coloca o primeiro na saida para desencadear as interrupcoes
+    i_msg = 1;
+
     while (1) {
         if (qnt_buffer > 0) {
             //nem interrupcao TX nem DX ligadas
             if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0) && qnt_buffer != 0) {
                 comando_atual = pega_comando_do_buffer();
-                *p_ucsr0B |= 0x20; //quando tiver algo no buffer, habilita-se a interrupção RX
+                *p_ucsr0B |= 0x20; //quando tiver algo no buffer circular, habilita-se a interrupção UDRE
                 executa_acao_atual();
             }
         } else {
             //interrupcao DX desligada e nao estar printando no momento
             if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0)) && qnt_buffer == 0) {
-                comecar_printar(4);
+                esta_printando = 1; //setta a flag que o programa esta executando um print
+                cod_msg = 4;
+                *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
                 executa_acao_atual();
             }
         }
