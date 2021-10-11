@@ -1,7 +1,5 @@
-//TODO: colocar as especificacoes da atividade 6
-
 #define F_CPU 16000000UL
-#define MAX_BUFFER 5
+#define MAX_BUFFER 10
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -13,12 +11,12 @@ unsigned char *p_ddrC;
 volatile unsigned int led_c = 0;
 volatile unsigned int led_m = 0;
 volatile unsigned int led_b = 0;
-volatile unsigned int acao_atual = 0;
 
-/******** Estados ********/
+/******** Estados e Acoes********/
 volatile unsigned int estado_acao_0 = 0;
 volatile unsigned int estado_acao_1 = 0;
 volatile unsigned int estado_acao_2 = 0;
+volatile unsigned int acao_atual = 0;
 
 /******** Print ********/
 volatile unsigned int i_msg = 0;
@@ -28,7 +26,7 @@ char msg_2[] = "Comando: Varredura com um LED apagado.\n\n";
 char msg_undefined[] = "Comando incorreto. \n\n";
 char msg_vazio[] = "Vazio! \n\n";
 volatile unsigned int esta_printando = 0;
-volatile unsigned int cod_msg = 0; //ENUM: 0, 1, 2, 3: undefined, 4: vazio
+volatile unsigned int cod_msg = 0; //ENUM: 0: msg_0, 1: msg_1, 2: msg_2, 3: undefined, 4: vazio
 
 /******** Buffer Circular ********/
 volatile unsigned int i = 0;
@@ -70,7 +68,6 @@ void config() {
     p_udr0 = (unsigned char *) 0xC6;
 
     /*Especificacoes da atividade*/
-
     *p_ubrr0H = 0; //TODO: eu nao lembro pra que era esse aqui
     *p_ubrr0L = 51; // 19,2kbps com a F_CPU definida e sem double speed
 
@@ -102,8 +99,6 @@ void config() {
     // UCSZn1 UCSZn0: quantidade de bits por pacote (1byte - 8bits), pelo manual, ambos habilitados
     // UCPOLn: polaridade do clock, desabilitado no modo assincrono
     *p_ucsr0C = 0x06;
-
-    //TODO: mudei so os comentarios, nao o codigo!!!!
 
     /*Habilita interrupções globais*/
     sei();
@@ -245,6 +240,7 @@ void executa_acao_atual() {
         default:
             break;
     }
+    _delay_ms(500);
 }
 /************** Maquinas de Estado e Acoes dos LEDS: END **************/
 
@@ -284,7 +280,6 @@ void print_msg(char *str) {
         *p_udr0 = str[i_msg];
         i_msg++;
     } else {
-        _delay_ms(500);
         *p_ucsr0B &= ~0x40; // apos terminar de enviar a msg, desabilata interrupcao TX
         *p_udr0 = str[i_msg];
         i_msg = 0;
@@ -295,31 +290,24 @@ void print_msg(char *str) {
 
 
 /************** Servicos do Buffer Circular: BEGIN **************/
-unsigned int adicionar_indice(unsigned int k) {
-    if (k == (MAX_BUFFER-1)) {
-        return 0;
-    } else {
-        return k + 1;
-    }
-}
-
-void adiciona_buffer(unsigned int in) {
+void adiciona_buffer(unsigned char in) {
     if (qnt_buffer < MAX_BUFFER) {
         buffer_circular[i] = in;
         qnt_buffer++;
-        i = adicionar_indice(i);
+        if ( i == (MAX_BUFFER-1)) i = 0;
+        else i++;
     }
 }
 
 unsigned char pega_comando_do_buffer() {
-    unsigned char output = 0;
+    unsigned char out = 0;
     if (qnt_buffer > 0) {
-        output = buffer_circular[j];
-        buffer_circular[j] = 0;
+        out = buffer_circular[j];
         qnt_buffer--;
-        j = adicionar_indice(j);
+        if ( j == (MAX_BUFFER-1)) j = 0;
+        else j++;
     }
-    return output;
+    return out;
 }
 /************** Servicos do Buffer Circular: END **************/
 
