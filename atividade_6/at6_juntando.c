@@ -70,28 +70,40 @@ void config() {
     p_udr0 = (unsigned char *) 0xC6;
 
     /*Especificacoes da atividade*/
-    /*Registradores que configuram o Baud rate*/
-    /*especificado na atividade: 15.2k com -3.5% de erro*/
-    *p_ubrr0H = 0;
-    *p_ubrr0L = 11;
+
+    *p_ubrr0H = 0; //TODO: eu nao lembro pra que era esse aqui
+    *p_ubrr0L = 51; // 19,2kbps com a F_CPU definida e sem double speed
 
     // UCSRnA – USART Control and Status Register n A
     // RXCn TXCn UDREn FEn DORn UPEn U2Xn MPCMn
     //  X    X     X    X    X   X    0     0
-    //                              =DS=
+    // U2Xn: double speed desativado
+    // MPCMn: modo de transmissao multi-processador desabilitado
     *p_ucsr0A = 0;
 
     // UCSRnB – USART Control and Status Register n B
     // RXCIEn TXCIEn UDRIEn RXENn TXENn UCSZn2 RXB8n TXB8n
     //  1       1      0      1     1     0      X     X
+    // RXCIEn: habilita interrupcao quando um caractere eh escrito no monitor serial (habilitada)
+    // TXCIEn: habilita interrupcao quando uma transmissao termina (transmissao completa) (habilitada)
+    // UDRIEn: habilita interrupcao quando o buffer de enviar dados esta vazio (inicialmente, desabilitada*)
+        //*inicialmente, a interrupcao de buffer vazio esta desabilitada para o programa nao chama-la logo de inicio
+    // RXENn e TXENn: habilita recepcao e transmissao (ambas habilitadas)
+    // UCSZn2: numero de bits no pacote (1byte - 8bits), entao eh zero
+    // RXB8n TXB8n: don't care pq nao estamos usando um 9o bit
     *p_ucsr0B = 0xD8;
-    //inicialmente, a interrupcao de buffer vazio esta desabilitada para o programa nao chama-la logo de inicio
 
     // UCSRnC – USART Control and Status Register n C
     // UMSELn1 UMSELn0 UPMn1 UPMn0 USBSn UCSZn1 UCSZn0 UCPOLn
-    //    0       0      0     0     1      1     1      0
-    //  ====ASSYNC==  |   =PARY=  |=STP=| ==8 bits==  |
-    *p_ucsr0C = 0x0E;
+    //    0       0      0     0     0      1     1      0
+    // UMSELn1 UMSELn0: modo de operacao (assincrono)
+    // UPMn1 UPMn0: paridade de bits (sem bits de paridade)
+    // USBSn: bits de parada (1 bit -> settado para zero)
+    // UCSZn1 UCSZn0: quantidade de bits por pacote (1byte - 8bits), pelo manual, ambos habilitados
+    // UCPOLn: polaridade do clock, desabilitado no modo assincrono
+    *p_ucsr0C = 0x06;
+
+    //TODO: mudei so os comentarios, nao o codigo!!!!
 
     /*Habilita interrupções globais*/
     sei();
