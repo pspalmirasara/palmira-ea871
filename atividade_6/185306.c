@@ -336,7 +336,7 @@ unsigned char pega_comando_do_buffer() {
 /************** Servicos do Buffer Circular: END **************/
 
 /************** Interrupcoes: BEGIN **************/
-/****** UDRE:  ******/
+/****** UDRE: setta as acoes (comeca a printar e muda estado dos LEDs) ******/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
             case '0':
@@ -400,19 +400,14 @@ int main() {
     while (1) {
         if (qnt_buffer > 0) {
             // Caso haja algo no buffer circular, executara a proxima acao que esta nele
-            if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0)) {
-                comando_atual = pega_comando_do_buffer();
-                *p_ucsr0B |= 0x20; //quando tiver algo no buffer circular, habilita-se a interrupção UDRE
-                executa_acao_atual();
-            }
+            comando_atual = pega_comando_do_buffer();
+            *p_ucsr0B |= 0x20; //quando tiver algo no buffer circular, habilita-se a interrupção UDRE
         } else {
             // Caso o buffer circular esteja vazio, imprimira a msg "Vazio!"
-            if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0))) {
-                esta_printando = 1; //setta a flag que o programa esta executando um print
-                cod_msg = 4;
-                *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
-                executa_acao_atual();
-            }
+            esta_printando = 1; //setta a flag que o programa esta executando um print
+            cod_msg = 4;
+            *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
         }
+        executa_acao_atual(); // executa a acao atual, isto eh, avanca o estado dos LEDs
     }
 }
