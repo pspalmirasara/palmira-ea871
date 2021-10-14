@@ -15,15 +15,19 @@
 unsigned char *p_portC;
 unsigned char *p_pinC;
 unsigned char *p_ddrC;
-volatile unsigned int led_c = 0;
-volatile unsigned int led_m = 0;
-volatile unsigned int led_b = 0;
+// variaveis que auxiliam a saber se cada LED esta aceso ou apagado
+volatile unsigned int led_c = 0; // LED de cima
+volatile unsigned int led_m = 0; // LED do meio
+volatile unsigned int led_b = 0; // LED de baixo
 
 /******** Estados e Acoes********/
+// O programa tera 3 acoes (0, 1 e 2) que serao disparadas pelos comandos 0, 1 e 2
+// A variavel acao_atual guardara a acao que esta sendo executada no momento
+volatile unsigned int acao_atual = 0;
+// Cada acao tera sua propria maquina de estado
 volatile unsigned int estado_acao_0 = 0;
 volatile unsigned int estado_acao_1 = 0;
 volatile unsigned int estado_acao_2 = 0;
-volatile unsigned int acao_atual = 0;
 
 /******** Print ********/
 volatile unsigned int i_msg = 0;
@@ -33,12 +37,12 @@ char msg_2[] = "Comando: Varredura com um LED apagado.\n\n";
 char msg_undefined[] = "Comando incorreto. \n\n";
 char msg_vazio[] = "Vazio! \n\n";
 volatile unsigned int esta_printando = 0;
-volatile unsigned int cod_msg = 0; //ENUM: 0: msg_0, 1: msg_1, 2: msg_2, 3: undefined, 4: vazio
+volatile unsigned int cod_msg = 0; //ENUM: 0: msg_0, 1: msg_1, 2: msg_2, 3: msg_undefined, 4: msg_vazio
 
 /******** Buffer Circular ********/
-volatile unsigned int i = 0;
-volatile unsigned int j = 0;
-volatile unsigned int qnt_buffer = 0;
+volatile unsigned int i = 0; // Indica a posicao em que devera ser inserido
+volatile unsigned int j = 0; // Indica a posicao em que devera ser deletado
+volatile unsigned int qnt_buffer = 0; // Quantidade de itens no buffer
 volatile unsigned char buffer_circular[MAX_BUFFER];
 volatile unsigned char comando_atual = 0;
 
@@ -61,8 +65,9 @@ void config() {
 
     //The Port C Data Register
     //– PORTC6 PORTC5 PORTC4 PORTC3 PORTC2 PORTC1 PORTC0
-    //PORTC5: LED baixo, PORTC4: LED meio, PORTC3: LED cima
-    *p_portC |= 0x00;
+    //PORTC5: LED de baixo, PORTC4: LED do meio, PORTC3: LED de cima
+    *p_portC = 0; // Todos os LEDs começam desligados
+    *p_ddrC |= 0x38; // Configura os LEDs como saida
 
     /*Enderecos do UART*/
     p_ubrr0H = (unsigned char *) 0xC5;
@@ -71,12 +76,15 @@ void config() {
     p_ucsr0B = (unsigned char *) 0xC1;
     p_ucsr0C = (unsigned char *) 0xC2;
 
-    /*Registrador que recebera o dado a ser transmitido*/
+    /*Registrador que recebera o dado a ser transmitido para a UART*/
     p_udr0 = (unsigned char *) 0xC6;
 
     /*Especificacoes da atividade*/
-    *p_ubrr0H = 0; //TODO: eu nao lembro pra que era esse aqui
-    *p_ubrr0L = 51; // 19,2kbps com a F_CPU definida e sem double speed
+
+    // Bound rate: 19,2kbps com a F_CPU definida (16000000UL) e sem double speed (erro de 0.2%)
+    // De acordo com o manual, UBRRN0 = 51 (dec) -> 11 0011 (bin) = 0x33 (hex)
+    *p_ubrr0H = 0;
+    *p_ubrr0L = 0x33;
 
     // UCSRnA – USART Control and Status Register n A
     // RXCn TXCn UDREn FEn DORn UPEn U2Xn MPCMn
@@ -112,7 +120,7 @@ void config() {
 }
 
 /************** Servicos do LED: BEGIN **************/
-//c para o led de cima, m para o do meio e b para o de baixo
+// Funcao que recebe um char ('c', 'm' ou 'b') e liga o LED correspondente
 void liga_led(char led) {
     if (led == 'c') {
         *p_portC |= 0x08;
@@ -128,6 +136,7 @@ void liga_led(char led) {
     }
 }
 
+// Funcao que recebe um char e apaga o LED correspondente
 void apaga_led(char led) {
     if (led == 'c') {
         *p_portC &= ~0x08;
@@ -143,7 +152,7 @@ void apaga_led(char led) {
     }
 }
 
-//se o led correspondente esta apagado, o liga e vice-versa
+// Se o led correspondente esta apagado, o liga e vice-versa
 void troca_estado_led (char led) {
     if (led == 'c') {
         if (led_c == 1) apaga_led(led);
@@ -162,6 +171,7 @@ void troca_estado_led (char led) {
 
 
 /************** Maquinas de Estado e Acoes dos LEDS: BEGIN **************/
+// Acao 0: leds em pisca-pisca
 void acao_0 () {
     switch (estado_acao_0) {
         case 0:
@@ -182,6 +192,7 @@ void acao_0 () {
     }
 }
 
+// Acao 1: leds em varredura (led ligado varrendo)
 void acao_1 () {
     switch (estado_acao_1) {
         case 0:
@@ -208,6 +219,7 @@ void acao_1 () {
     }
 }
 
+// Acao 2: leds em varredura (led desligado varrendo)
 void acao_2 () {
     switch (estado_acao_2) {
         case 0:
@@ -234,7 +246,7 @@ void acao_2 () {
     }
 }
 
-// De acordo com qual acao estiver settada no momento, chamara a funcao para
+// De acordo com qual acao estiver settada no momento (acao_atual), chamara a funcao para
 // que ela realize suas instrucoes e avance para o proximo estado.
 // Apos isso, executa o delay
 void executa_acao_atual() {
@@ -282,7 +294,7 @@ void comecar_printar(int input) {
     }
 
     *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
-    *p_udr0 = str[0]; //coloca o primeiro na saida para desencadear as interrupcoes
+    *p_udr0 = str[0]; //coloca o primeiro caracter na saida para desencadear as interrupcoes
     i_msg = 1;
 }
 
@@ -324,51 +336,54 @@ unsigned char pega_comando_do_buffer() {
 /************** Servicos do Buffer Circular: END **************/
 
 /************** Interrupcoes: BEGIN **************/
-/****** UDRE ******/
+/****** UDRE:  ******/
 ISR(USART_UDRE_vect) {
         switch (comando_atual) {
             case '0':
                 acao_atual = 0;
-            comecar_printar(0);
-            break;
+                comecar_printar(0);
+                break;
             case '1':
                 acao_atual = 1;
-            comecar_printar(1);
-            break;
+                comecar_printar(1);
+                break;
             case '2':
                 acao_atual = 2;
-            comecar_printar(2);
-            break;
+                comecar_printar(2);
+                break;
             default:
                 comecar_printar(3);
-            break;
+                break;
         }
-        *p_ucsr0B &= ~0x20; //desabilita interrupcao RX apos fazer acoes necessarias
+        *p_ucsr0B &= ~0x20; //desabilita interrupcao UDRE apos fazer as acoes necessarias
 }
 
-/****** RX: recebe os caracteres do monitor do monitor serial ******/
+/****** RX: recebe os caracteres do monitor serial ******/
+// A interrupcao RX eh disparada sempre que ha um novo caracter na entrada do monitor serial
+// O valor desse caracter esta em *p_udr0, que entao eh adicionado ao buffer circular
 ISR(USART_RX_vect) {
         adiciona_buffer(*p_udr0);
 }
 
 /****** TX: envia mensagens ao monitor serial ******/
+// A interrupcao TX sera utilizada para enviar caracteres ao monitor serial (printar)
 ISR(USART_TX_vect) {
         switch (cod_msg) {
             case 0:
                 print_msg(msg_0);
-            break;
+                break;
             case 1:
                 print_msg(msg_1);
-            break;
+                break;
             case 2:
                 print_msg(msg_2);
-            break;
+                break;
             case 3:
                 print_msg(msg_undefined);
-            break;
+                break;
             case 4:
                 print_msg(msg_vazio);
-            break;
+                break;
             default:
                 break;
         }
@@ -378,20 +393,21 @@ ISR(USART_TX_vect) {
 int main() {
     config();
 
-    *p_udr0 = msg_vazio[0]; //coloca o primeiro na saida para desencadear as interrupcoes
+    //coloca o primeiro caracter (da msg vazia) na saida para desencadear as interrupcoes (a TX, especificamente)
+    *p_udr0 = msg_vazio[0];
     i_msg = 1;
 
     while (1) {
         if (qnt_buffer > 0) {
-            //nem interrupcao TX nem DX ligadas
-            if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0) && qnt_buffer != 0) {
+            // Caso haja algo no buffer circular, executara a proxima acao que esta nele
+            if ( ((*p_ucsr0B & 0x20) != 0x20)  && (esta_printando == 0)) {
                 comando_atual = pega_comando_do_buffer();
                 *p_ucsr0B |= 0x20; //quando tiver algo no buffer circular, habilita-se a interrupção UDRE
                 executa_acao_atual();
             }
         } else {
-            //interrupcao DX desligada e nao estar printando no momento
-            if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0)) && qnt_buffer == 0) {
+            // Caso o buffer circular esteja vazio, imprimira a msg "Vazio!"
+            if ( (((*p_ucsr0B & 0x20) != 0x20) && (esta_printando == 0))) {
                 esta_printando = 1; //setta a flag que o programa esta executando um print
                 cod_msg = 4;
                 *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
