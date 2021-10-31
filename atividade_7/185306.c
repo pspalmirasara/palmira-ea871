@@ -12,7 +12,7 @@
 #include <util/delay.h>
 
 /******** LED ********/
-// Porta 12 e 13 do arduino
+// Serao utilizadas as portas 12 e 13
 unsigned char *p_portB;
 unsigned char *p_ddrB;
 
@@ -35,8 +35,8 @@ volatile unsigned int i_msg = 0;
 char msg[] = "Atividade 7 - Interrupcoes temporizadas tratam concorrencia entre tarefas! \n\n";
 
 /******** Temporizador ********/
-volatile unsigned  int contador_1 = 0;
-volatile unsigned  int contador_2 = 0;
+volatile unsigned  int contador_externo = 0;
+volatile unsigned  int contador_embutido = 0;
 volatile unsigned char estado = 0;
 
 
@@ -64,7 +64,15 @@ void config() {
 
     /* Especificacoes do temporizador */
 
-    *p_ocr0a = 249; //OCR0A
+    // Eh preciso fazer um periodo multiplo de 0.78s e 0.50s
+    // Portanto, foi escolhido o periodo 0.01s, ja que o Tmax do temporizador eh
+    // 0.016 como visto em aula, 0.01 eh um valor que pode-se alcancar com o temporizador.
+    // Para tanto, foi feita a conta OCR0A = ((T*f)/P)-1, com T = 0.01, f = 16e6
+    // e P pertencente a 1, 8, 64, 256 ou 1024
+    // Foi achado o valor de OCR0A = 155.25 para um prescaler de 1024. Portanto, foi escolhido
+    // o valor OCR0A = 156, que nos da um periodo de T = (OCR0A + 1)*(P/f) = 0.010048
+
+    *p_ocr0a = 156; //OCR0A
 
     // TIMSK0 – Timer/Counter Interrupt Mask Register
     // – – – – – OCIE0B OCIE0A TOIE0
@@ -74,9 +82,9 @@ void config() {
 
     // TCCR0B – Timer/Counter Control Register B
     // FOC0A FOC0B – – WGM02 CS02 CS01 CS00
-    // 0      0   - -   0    0     1   0
-    // CS02, CS01 e CS00: valor do preseter
-    *p_tccr0b = 3;
+    // 0      0   - -   0    1     0   1
+    // CS02, CS01 e CS00 são o valor do prescaler, que é 1024 (codigo retirado do manual)
+    *p_tccr0b = 5;
 
     // TCCR0A – Timer/Counter Control Register A
     // COM0A1 COM0A0 COM0B1 COM0B0 – – WGM01 WGM00
@@ -121,10 +129,7 @@ void config() {
 
     /* Especificacoes dos LED */
     //The Port B Data Register
-    //PORTB5 = pino 13 PORTB4 = pino 12
-    // 0000 0011
-    // 0011 0000
-
+    //PORTB5 = pino 13 (LED embutido) PORTB4 = pino 12 (LED externo)
     *p_ddrB |= 0x30; // Configura os LEDs como saida
     *p_portB &= ~(0x30);  // Todos os LEDs começam desligados
 
@@ -147,10 +152,15 @@ void print_msg(char *str) {
 /************** Servicos de Printar: END **************/
 
 /************** Interrupcoes: BEGIN **************/
+//A cada 0.010048s essa interrupcao sera disparada,
+//E com ela, usaremos ela para contar tempos multiplos desse periodo
 ISR(TIMER0_COMPA_vect) {
-        contador_1++;
-        if (contador_1 >= 100) {
-            contador_1 = 0;
+
+        //Led externo
+        contador_externo++;
+        if (contador_externo >= 78) {
+            //utilizando o MapLab, o periodo calculado eh 783,743938 ms = 0,78s
+            contador_externo = 0;
             if (estado == 0) {
                 *p_portB |= (0x10);
                 estado = 1;
@@ -160,9 +170,11 @@ ISR(TIMER0_COMPA_vect) {
             }
         }
 
-        contador_2++;
-        if (contador_2 >= 256) {
-            contador_2 = 0;
+        //Led embutido
+        contador_embutido++;
+        if (contador_embutido >= 50) {
+            //utiliznado o MapLab, o periodo calculado eh 502,4 ms = 0,50s
+            contador_embutido = 0;
             if (estado == 0) {
                 *p_portB |= (0x20);
                 estado = 1;
@@ -174,7 +186,7 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 ISR(USART_TX_vect) {
-    print_msg(msg);
+        print_msg(msg);
 }
 /************** Interrupcoes: END **************/
 
@@ -186,6 +198,6 @@ int main() {
 
     while (1) {
         *p_ucsr0B |= 0x40; //habilita a interrupcao TX para printar
-        _delay_ms(5000);
+        _delay_ms(5000); // Espera de 5seg entre uma msg e a proxima
     }
 }
