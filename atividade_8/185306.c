@@ -6,7 +6,7 @@
  */
 
 #define F_CPU 16000000UL
-#define VALUE_OCR0A 251
+#define VALUE_OCR0A 249
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -14,7 +14,7 @@
 
 /******** Temporizador ********/
 volatile unsigned int fade_out = 1;
-volatile unsigned int contador_segundos = 0; //aqui, consideraremos que 1seg = 1004 interrupcoes
+volatile unsigned int contador_segundos = 0; //aqui, consideraremos que 1seg = 996 interrupcoes
 volatile unsigned int contador_duty_cycle = 0;
 
 void config() {
@@ -29,13 +29,13 @@ void config() {
      * Tpwm = (OCR0A + 1) * 64/16000000
      * Com Tpwm = 0.001s (1ms)
      * 0.001 * 16000000/64 = (OCR0A + 1)
-     * 250+1 = OCR0A ---> OCR0A = 251
+     * 250-1 = OCR0A ---> OCR0A = 249
      *
      * Para realizar o fade-in e o fade-out, eh preciso incrementar e decrementar
      * de uma em uma a unidade do duty cycle
-     * Logo, 1s / 251 =~ 0.004s
-     * Para levar em conta o arredondamento, 251*0.004s = 1,004s.
-     * Logo, durante o programa, 1s sera considerado 1004 ciclos.
+     * Logo, 1s / 249 =~ 0.004s
+     * Para levar em conta o arredondamento, 249*0.004s = 0.996s.
+     * Logo, durante o programa, 1s sera considerado 996 ciclos.
      */
 
     OCR0A = VALUE_OCR0A;
@@ -81,7 +81,7 @@ void config() {
 ISR(TIMER0_OVF_vect) {
         //contador dos segundos
         contador_segundos++;
-        if (contador_segundos == 1004) {
+        if (contador_segundos == 996) {
             contador_segundos = 0;
             if (fade_out == 1) {
                 // muda para fade_in
