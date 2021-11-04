@@ -44,7 +44,7 @@ void config() {
     // TIMSK0 – Timer/Counter Interrupt Mask Register
     // – – – – – OCIE0B OCIE0A TOIE0
     //   0         0      0      1
-    //TOIE0: contagem resetta quando a comparação eh zerada
+    //TOIE0: contagem resetta quando se iguala ao registrador de comparacao (OCR0A, no caso do programa0=)
     TIMSK0 = 0x01;
 
     // TCCR0B – Timer/Counter Control Register B
@@ -57,7 +57,9 @@ void config() {
     // COM0A1 COM0A0 COM0B1 COM0B0 – – WGM01 WGM00
     //  0      0       1     0    - -    1    1
     // WGM02, WGM01 E WGM00: setta o modo (111 para Fast PMW com TOP=OCRA0)
+    // COM0A1 e COM0A0: usando OC0A como GPIO normais
     // COM0B1: zera OC0B ao igualar comparacao (OC0B eh onde saira a forma de onda, no pino 5)
+    // e settar quando a contagem atinge zero
     TCCR0A = 0x23;
 
     /* Especificacoes dos LED */
